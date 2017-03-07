@@ -31,14 +31,22 @@ function Set-xColorTheme {
         Write-Error "Unable to fetch the theme $themeName from xcolors.net"
     }
     $ErrorActionPreference = "Continue"
-    $ThemeLines = ($ThemeLines | Where {$_ -notmatch "^!" -and $_ -match "color\d+" }) -replace "\s+|\*\.?"
+    $ThemeLines = ($ThemeLines | Where {$_ -notmatch "^!" -and $_ -match "color\d+" }) -replace "\s+|\*\.?" -replace '.*(color[\d]+)\:','$1:'
 
     Write-Verbose ($ThemeLines -join "`n")
 
-    $Theme = $ThemeLines.ForEach{
-        $index, $value = $_.split(@("color",":"),2,"RemoveEmptyEntries")
-        [Tuple[ConsoleColor,Drawing.Color]]::new([ConsoleColor][string][xColor]$index, [Drawing.Color]$value)
+    $Theme = @{}
+    $ThemeLines.ForEach{
+
+            $index, $value = $_.split(@("color",":"),2,"RemoveEmptyEntries")
+            if($value -notmatch "#[abcdef0123456789]{6}") {
+                $value = $value -replace "(?:.*([abcdef0123456789]{2}).*)(?:.*([abcdef0123456789]{2}).*)(?:.*([abcdef0123456789]{2}).*)",'#$1$2$3'
+            }
+            $Theme.([ConsoleColor][string][xColor]$index) = [Drawing.Color]$value
+
     }
+
+    Write-Verbose (($Theme | Format-Table | Out-String -stream) -join "`n")
 
     Set-Theme $Theme -ErrorVariable E
     Write-Verbose "Theme set to $themeName with $($E.Count) errors"
